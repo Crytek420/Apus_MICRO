@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/simon/Apus/ESP32/main
+# Install script for directory: C:/Users/simon/Apus/Apus_MICRO/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

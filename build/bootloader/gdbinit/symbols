@@ -17,4 +17,4 @@ set confirm off
 set confirm on
 
 # Load application symbols
-file C:/Users/simon/Apus/ESP32/build/bootloader/bootloader.elf
+file C:/Users/simon/Apus/Apus_MICRO/build/bootloader/bootloader.elf

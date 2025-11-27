@@ -1,2 +1,2 @@
-source C:/Users/simon/Apus/ESP32/build/gdbinit/symbols
-source C:/Users/simon/Apus/ESP32/build/gdbinit/connect
+source C:/Users/simon/Apus/Apus_MICRO/build/gdbinit/symbols
+source C:/Users/simon/Apus/Apus_MICRO/build/gdbinit/connect
