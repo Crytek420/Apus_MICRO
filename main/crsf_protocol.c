@@ -7,12 +7,15 @@
 #include "freertos/queue.h"
 #include <string.h>
 
+// Temporarily disable verbose logging for IMU debugging
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
+
 static const char *TAG = "CRSF";
 
-/* UART Configuration for ESP32-C6 */
+/* UART Configuration for ESP32-S3 */
 #define CRSF_UART_NUM UART_NUM_1
-#define CRSF_UART_TX_PIN 4
-#define CRSF_UART_RX_PIN 5
+#define CRSF_UART_TX_PIN 17 // U1TXD native pin
+#define CRSF_UART_RX_PIN 18 // U1RXD native pin
 #define CRSF_UART_RTS_PIN UART_PIN_NO_CHANGE
 #define CRSF_UART_CTS_PIN UART_PIN_NO_CHANGE
 #define CRSF_UART_BUF_SIZE 512

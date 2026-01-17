@@ -7,11 +7,13 @@
 /* Servo Configuration */
 #define SERVO_COUNT 4
 
-/* Servo Pin Definitions (PWM capable GPIOs on ESP32-C6) */
-#define SERVO_LEFT_OUTER_PIN    18   // Linke Tragfläche, äußere Klappe
-#define SERVO_LEFT_INNER_PIN    19   // Linke Tragfläche, innere Klappe
-#define SERVO_RIGHT_INNER_PIN   20   // Rechte Tragfläche, innere Klappe
-#define SERVO_RIGHT_OUTER_PIN   21   // Rechte Tragfläche, äußere Klappe
+/* Servo Pin Definitions (PWM capable GPIOs on ESP32-S3)
+ * Using GPIO 9, 10, 11, 12 - these don't have ADC1 channels
+ * ADC1 channels (GPIO 1-8) kept free for voltage/current sensing */
+#define SERVO_LEFT_OUTER_PIN    9    // Linke Tragfläche, äußere Klappe
+#define SERVO_LEFT_INNER_PIN    10   // Linke Tragfläche, innere Klappe
+#define SERVO_RIGHT_INNER_PIN   11   // Rechte Tragfläche, innere Klappe
+#define SERVO_RIGHT_OUTER_PIN   12   // Rechte Tragfläche, äußere Klappe
 
 /* PWM Configuration for SG90 */
 #define SERVO_PWM_FREQUENCY     50      // 50Hz for SG90

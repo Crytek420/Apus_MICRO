@@ -1,4 +1,4 @@
-C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/riscv/libriscv.a
+C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/xtensa/libxtensa.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_gpio/libesp_driver_gpio.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_pm/libesp_pm.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/mbedtls/libmbedtls.a
@@ -35,14 +35,13 @@ C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_spi/libesp_driver_spi.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_mcpwm/libesp_driver_mcpwm.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_i2s/libesp_driver_i2s.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/sdmmc/libsdmmc.a
+C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_sdmmc/libesp_driver_sdmmc.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_sdspi/libesp_driver_sdspi.a
-C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_sdio/libesp_driver_sdio.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_rmt/libesp_driver_rmt.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_tsens/libesp_driver_tsens.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_sdm/libesp_driver_sdm.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_i2c/libesp_driver_i2c.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_ledc/libesp_driver_ledc.a
-C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_parlio/libesp_driver_parlio.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_driver_usb_serial_jtag/libesp_driver_usb_serial_jtag.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/driver/libdriver.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_phy/libesp_phy.a
@@ -75,11 +74,13 @@ C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/esp_local_ctrl/libesp_local_ctrl.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/espcoredump/libespcoredump.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/wear_levelling/libwear_levelling.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/fatfs/libfatfs.a
-C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/ieee802154/libieee802154.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/json/libjson.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/mqtt/libmqtt.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/nvs_sec_provider/libnvs_sec_provider.a
+C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/perfmon/libperfmon.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/rt/librt.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/spiffs/libspiffs.a
+C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/touch_element/libtouch_element.a
+C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/usb/libusb.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 C:/Users/simon/Apus/Apus_MICRO/build/esp-idf/main/libmain.a

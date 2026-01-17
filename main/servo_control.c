@@ -7,6 +7,8 @@
 
 static const char *TAG = "SERVO";
 
+#define LOG_LOCAL_LEVEL ESP_LOG_ERROR
+
 /* LEDC Timer and Channel Configuration */
 #define LEDC_TIMER LEDC_TIMER_0
 #define LEDC_MODE LEDC_LOW_SPEED_MODE
