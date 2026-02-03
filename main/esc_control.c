@@ -16,11 +16,15 @@ static const char *TAG = "ESC";
 #define ESC_LEDC_CHANNEL LEDC_CHANNEL_4
 #define ESC_LEDC_DUTY_RES LEDC_TIMER_14_BIT // 14-bit resolution
 
+/* LEDC Configuration for Reverse Brake */
+#define ESC_REVERSE_LEDC_CHANNEL LEDC_CHANNEL_5
+
 /* State Variables */
 static float g_filtered_throttle = 0.0f; // Current filtered throttle (0-1000)
 static float g_target_throttle = 0.0f;   // Target throttle from input (0-1000)
 static uint16_t g_filter_time_ms = ESC_DEFAULT_FILTER_TIME_MS;
 static bool g_initialized = false;
+static esc_direction_t g_direction = ESC_DIRECTION_FORWARD;
 
 /**
  * @brief Convert microseconds to LEDC duty cycle
@@ -50,6 +54,16 @@ static void esc_set_pulse_us(uint16_t pulse_width_us)
 }
 
 /**
+ * @brief Set reverse brake channel PWM pulse width
+ */
+static void esc_set_reverse_pulse_us(uint16_t pulse_width_us)
+{
+    uint32_t duty = esc_us_to_duty(pulse_width_us);
+    ESP_ERROR_CHECK(ledc_set_duty(ESC_LEDC_MODE, ESC_REVERSE_LEDC_CHANNEL, duty));
+    ESP_ERROR_CHECK(ledc_update_duty(ESC_LEDC_MODE, ESC_REVERSE_LEDC_CHANNEL));
+}
+
+/**
  * @brief Update low-pass filter (called periodically)
  * Implements first-order exponential low-pass filter
  */
@@ -69,11 +83,24 @@ static void esc_update_filter(void)
     // filtered = filtered + alpha * (target - filtered)
     g_filtered_throttle += alpha * (g_target_throttle - g_filtered_throttle);
 
-    // Convert filtered throttle (0-1000) to pulse width (1000-2000us)
-    uint16_t pulse_us = ESC_MIN_PULSEWIDTH_US +
-                        (uint16_t)((g_filtered_throttle * (ESC_MAX_PULSEWIDTH_US - ESC_MIN_PULSEWIDTH_US)) / 1000.0f);
-
-    esc_set_pulse_us(pulse_us);
+    // Handle direction control - Type A configuration
+    if (g_direction == ESC_DIRECTION_FORWARD)
+    {
+        // Forward: normal throttle on main channel, reverse channel at 0% (forward mode)
+        uint16_t pulse_us = ESC_MIN_PULSEWIDTH_US +
+                            (uint16_t)((g_filtered_throttle * (ESC_MAX_PULSEWIDTH_US - ESC_MIN_PULSEWIDTH_US)) / 1000.0f);
+        esc_set_pulse_us(pulse_us);
+        esc_set_reverse_pulse_us(ESC_REVERSE_MIN_PULSEWIDTH_US); // 1000us = 0% = forward
+    }
+    else
+    {
+        // Reverse: normal throttle on main channel, reverse channel at 100% (reverse mode)
+        // Type A: Motor stops, then reverses based on throttle input
+        uint16_t pulse_us = ESC_MIN_PULSEWIDTH_US +
+                            (uint16_t)((g_filtered_throttle * (ESC_MAX_PULSEWIDTH_US - ESC_MIN_PULSEWIDTH_US)) / 1000.0f);
+        esc_set_pulse_us(pulse_us);
+        esc_set_reverse_pulse_us(ESC_REVERSE_MAX_PULSEWIDTH_US); // 2000us = 100% = reverse
+    }
 }
 
 /**
@@ -92,10 +119,23 @@ static void esc_control_task(void *pvParameters)
         // Log PWM values every second (50 iterations at 50Hz)
         if (iteration_count % 50 == 0)
         {
-            uint16_t pulse_us = ESC_MIN_PULSEWIDTH_US +
-                                (uint16_t)((g_filtered_throttle * (ESC_MAX_PULSEWIDTH_US - ESC_MIN_PULSEWIDTH_US)) / 1000.0f);
-            ESP_LOGI(TAG, "Throttle: %d%% | PWM: %dus | Target: %.0f | Filtered: %.0f | Filter time: %dms",
-                     (uint16_t)(g_filtered_throttle / 10), pulse_us, g_target_throttle, g_filtered_throttle, g_filter_time_ms);
+            uint16_t main_pulse_us, reverse_pulse_us;
+            main_pulse_us = ESC_MIN_PULSEWIDTH_US +
+                            (uint16_t)((g_filtered_throttle * (ESC_MAX_PULSEWIDTH_US - ESC_MIN_PULSEWIDTH_US)) / 1000.0f);
+
+            if (g_direction == ESC_DIRECTION_FORWARD)
+            {
+                reverse_pulse_us = ESC_REVERSE_MIN_PULSEWIDTH_US; // 0% = forward
+            }
+            else
+            {
+                reverse_pulse_us = ESC_REVERSE_MAX_PULSEWIDTH_US; // 100% = reverse
+            }
+
+            ESP_LOGI(TAG, "Dir: %s | Throttle: %d%% | Main PWM: %dus | Rev PWM: %dus (Type A) | Target: %.0f | Filtered: %.0f",
+                     g_direction == ESC_DIRECTION_FORWARD ? "FWD" : "REV",
+                     (uint16_t)(g_filtered_throttle / 10), main_pulse_us, reverse_pulse_us,
+                     g_target_throttle, g_filtered_throttle);
         }
 
         iteration_count++;
@@ -139,14 +179,31 @@ esp_err_t esc_init(void)
         return ret;
     }
 
+    // Configure LEDC channel for reverse brake
+    ledc_channel_config_t reverse_channel_conf = {
+        .gpio_num = ESC_REVERSE_PIN,
+        .speed_mode = ESC_LEDC_MODE,
+        .channel = ESC_REVERSE_LEDC_CHANNEL,
+        .timer_sel = ESC_LEDC_TIMER,
+        .duty = esc_us_to_duty(ESC_REVERSE_MIN_PULSEWIDTH_US), // Start at 0% (forward mode)
+        .hpoint = 0};
+    ret = ledc_channel_config(&reverse_channel_conf);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to configure reverse brake LEDC channel: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
     // Initialize state variables
     g_filtered_throttle = 0.0f;
     g_target_throttle = 0.0f;
+    g_direction = ESC_DIRECTION_FORWARD;
     g_initialized = true;
 
     ESP_LOGI(TAG, "ESC initialized successfully");
-    ESP_LOGI(TAG, "PWM: %dHz, Pulse range: %d-%dus, Filter time: %dms",
-             ESC_PWM_FREQUENCY, ESC_MIN_PULSEWIDTH_US, ESC_MAX_PULSEWIDTH_US, g_filter_time_ms);
+    ESP_LOGI(TAG, "Main PWM (GPIO %d): %dHz, %d-%dus", ESC_OUTPUT_PIN, ESC_PWM_FREQUENCY, ESC_MIN_PULSEWIDTH_US, ESC_MAX_PULSEWIDTH_US);
+    ESP_LOGI(TAG, "Reverse PWM (GPIO %d): %dHz, %d-%dus", ESC_REVERSE_PIN, ESC_PWM_FREQUENCY, ESC_REVERSE_MIN_PULSEWIDTH_US, ESC_REVERSE_MAX_PULSEWIDTH_US);
+    ESP_LOGI(TAG, "Filter time: %dms", g_filter_time_ms);
 
     // Create ESC control task for filter updates
     BaseType_t task_created = xTaskCreate(
@@ -300,4 +357,46 @@ uint16_t esc_map_crsf_to_throttle(uint16_t channel_value)
         throttle = ESC_THROTTLE_MAX;
 
     return (uint16_t)throttle;
+}
+
+/**
+ * @brief Set motor direction (forward or reverse)
+ */
+void esc_set_direction(esc_direction_t direction)
+{
+    if (!g_initialized)
+    {
+        ESP_LOGW(TAG, "ESC not initialized");
+        return;
+    }
+
+    if (direction != g_direction)
+    {
+        // Direction change - reset throttle for safety
+        g_target_throttle = 0.0f;
+        g_filtered_throttle = 0.0f;
+        g_direction = direction;
+
+        ESP_LOGI(TAG, "Direction changed to: %s", direction == ESC_DIRECTION_FORWARD ? "FORWARD" : "REVERSE");
+
+        // Apply immediately - Type A configuration
+        if (direction == ESC_DIRECTION_FORWARD)
+        {
+            esc_set_pulse_us(ESC_MIN_PULSEWIDTH_US);
+            esc_set_reverse_pulse_us(ESC_REVERSE_MIN_PULSEWIDTH_US); // 0% = forward
+        }
+        else
+        {
+            esc_set_pulse_us(ESC_MIN_PULSEWIDTH_US);
+            esc_set_reverse_pulse_us(ESC_REVERSE_MAX_PULSEWIDTH_US); // 100% = reverse
+        }
+    }
+}
+
+/**
+ * @brief Get current motor direction
+ */
+esc_direction_t esc_get_direction(void)
+{
+    return g_direction;
 }

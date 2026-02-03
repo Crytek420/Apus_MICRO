@@ -28,6 +28,8 @@ static const char *TAG = "CRSF";
 static crsf_channels_t g_rc_channels = {0};
 static bool g_rc_data_valid = false;
 static uint32_t g_last_rc_frame_time = 0;
+static crsf_link_statistics_t g_link_statistics = {0};
+static bool g_link_stats_valid = false;
 
 /* CRC8 Table for DVB-S2 */
 static const uint8_t crc8_dvb_s2_table[256] = {
@@ -258,6 +260,13 @@ static void crsf_process_frame(const uint8_t *data, size_t length)
         static uint32_t last_link_stats_log = 0;
         uint32_t now = xTaskGetTickCount();
 
+        // Store link statistics
+        if (frame->frame_size >= sizeof(crsf_link_statistics_t) + 2)
+        {
+            memcpy(&g_link_statistics, frame->payload, sizeof(crsf_link_statistics_t));
+            g_link_stats_valid = true;
+        }
+
         // Only log once per second (1 Hz)
         if ((now - last_link_stats_log) >= pdMS_TO_TICKS(1000))
         {
@@ -437,6 +446,25 @@ void crsf_task(void *pvParameters)
         // Wait for next cycle (10ms for 100 Hz)
         vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(CRSF_TASK_PERIOD_MS));
     }
+}
+
+/**
+ * @brief Get link statistics (if available)
+ */
+bool crsf_get_link_stats(crsf_link_statistics_t *stats)
+{
+    if (stats == NULL)
+    {
+        return false;
+    }
+
+    if (!g_link_stats_valid)
+    {
+        return false;
+    }
+
+    memcpy(stats, &g_link_statistics, sizeof(crsf_link_statistics_t));
+    return true;
 }
 
 /**

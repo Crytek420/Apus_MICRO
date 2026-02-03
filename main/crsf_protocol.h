@@ -112,6 +112,7 @@ uint8_t crsf_prepare_flight_mode_frame(crsf_frame_t *frame, const char *mode);
 esp_err_t crsf_uart_init(void);
 void crsf_send_telemetry(crsf_frame_t *frame, uint8_t frame_length);
 bool crsf_get_channels(crsf_channels_t *channels);
+bool crsf_get_link_stats(crsf_link_statistics_t *stats);
 
 /* Task Management */
 void crsf_task(void *pvParameters);

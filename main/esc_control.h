@@ -5,20 +5,33 @@
 #include "esp_err.h"
 
 /* ESC Configuration for Hobbywing 40A V2 */
-#define ESC_PWM_FREQUENCY     50        // 50Hz standard for hobby ESCs
-#define ESC_MIN_PULSEWIDTH_US 1000      // 1.0ms = 0% throttle (motor off)
-#define ESC_MAX_PULSEWIDTH_US 2000      // 2.0ms = 100% throttle (full power)
-#define ESC_ARM_PULSEWIDTH_US 1000      // Arming pulse width
+#define ESC_PWM_FREQUENCY 50       // 50Hz standard for hobby ESCs
+#define ESC_MIN_PULSEWIDTH_US 1000 // 1.0ms = 0% throttle (motor off)
+#define ESC_MAX_PULSEWIDTH_US 2000 // 2.0ms = 100% throttle (full power)
+#define ESC_ARM_PULSEWIDTH_US 1000 // Arming pulse width
 
-/* ESC Pin Definition */
-#define ESC_OUTPUT_PIN        13        // GPIO 13 (free pin, PWM capable)
+/* ESC Pin Definitions */
+#define ESC_OUTPUT_PIN 13  // GPIO 13 (free pin, PWM capable - throttle)
+#define ESC_REVERSE_PIN 14 // GPIO 14 (free pin, PWM capable - reverse brake)
 
 /* ESC Throttle Range (input from RC) */
-#define ESC_THROTTLE_MIN      0         // 0% throttle
-#define ESC_THROTTLE_MAX      1000      // 100% throttle (scaled from CRSF input)
+#define ESC_THROTTLE_MIN 0    // 0% throttle
+#define ESC_THROTTLE_MAX 1000 // 100% throttle (scaled from CRSF input)
 
 /* Low-Pass Filter Configuration */
-#define ESC_DEFAULT_FILTER_TIME_MS  100  // Default filter time constant in milliseconds
+#define ESC_DEFAULT_FILTER_TIME_MS 100 // Default filter time constant in milliseconds
+
+/* Reverse Brake Configuration (Type B) */
+#define ESC_REVERSE_MIN_PULSEWIDTH_US 1340 // 1.34ms = 0% reverse throttle
+#define ESC_REVERSE_MAX_PULSEWIDTH_US 1790 // 1.79ms = 100% reverse throttle
+#define ESC_REVERSE_NEUTRAL_US 1000        // Neutral position for reverse channel
+
+/* Motor Direction */
+typedef enum
+{
+    ESC_DIRECTION_FORWARD = 0,
+    ESC_DIRECTION_REVERSE = 1
+} esc_direction_t;
 
 /* Function Prototypes */
 
@@ -71,5 +84,17 @@ void esc_emergency_stop(void);
  * @return Throttle value (0-1000)
  */
 uint16_t esc_map_crsf_to_throttle(uint16_t channel_value);
+
+/**
+ * @brief Set motor direction (forward or reverse)
+ * @param direction ESC_DIRECTION_FORWARD or ESC_DIRECTION_REVERSE
+ */
+void esc_set_direction(esc_direction_t direction);
+
+/**
+ * @brief Get current motor direction
+ * @return Current direction (ESC_DIRECTION_FORWARD or ESC_DIRECTION_REVERSE)
+ */
+esc_direction_t esc_get_direction(void);
 
 #endif // ESC_CONTROL_H
