@@ -6,14 +6,11 @@
 #include "driver/uart.h"
 #include "crsf_protocol.h"
 #include "servo_control.h"
-#include "pi_uart.h"
+#include "pi_mavlink.h"
 #include "wt901b_imu.h"
 #include "esc_control.h"
 
 static const char *TAG = "FlightController";
-
-// Temporarily disable verbose logging for IMU debugging
-#define LOG_LOCAL_LEVEL ESP_LOG_ERROR
 
 /**
  * @brief Map CRSF channel value (172-1811) to control input (-1000 to +1000)
@@ -46,9 +43,13 @@ void app_main(void)
     ESP_LOGI(TAG, "Initializing ESC...");
     esc_init();
 
-    // Initialize UART for Raspberry Pi Zero 2W communication
-    ESP_LOGI(TAG, "Initializing Pi UART interface (UART2)...");
-    pi_uart_init();
+    // Initialize MAVLink for Raspberry Pi Zero 2W communication
+    ESP_LOGI(TAG, "Initializing Pi MAVLink interface (UART2)...");
+    pi_mavlink_init();
+
+    // Start MAVLink task
+    ESP_LOGI(TAG, "Starting MAVLink communication task...");
+    pi_mavlink_start_task();
 
     // Initialize WT901B IMU
     ESP_LOGI(TAG, "Initializing WT901B IMU...");
@@ -79,7 +80,6 @@ void app_main(void)
 
     uint32_t last_log_time = 0;
     uint32_t last_telemetry_time = 0;
-    uint32_t last_heartbeat_time = 0;
 
     while (1)
     {
@@ -120,24 +120,17 @@ void app_main(void)
             uint16_t throttle = esc_map_crsf_to_throttle(channels.channels[2]);
             esc_set_throttle(throttle);
 
-            // Send telemetry data to Raspberry Pi at 20 Hz
+            // Send telemetry data to Raspberry Pi at 20 Hz via MAVLink
             if ((now - last_telemetry_time) >= pdMS_TO_TICKS(50))
             {
-                // Send CRSF channels
-                pi_uart_send_crsf_channels(&channels, false);
+                // Send RC channels
+                pi_mavlink_send_rc_channels(&channels, false);
 
                 // Send IMU data
                 wt901b_data_t imu_data;
                 if (wt901b_get_data(&imu_data))
                 {
-                    pi_uart_send_imu(&imu_data);
-                }
-
-                // Send link statistics (if available)
-                crsf_link_statistics_t link_stats;
-                if (crsf_get_link_stats(&link_stats))
-                {
-                    pi_uart_send_link_stats(&link_stats);
+                    pi_mavlink_send_imu(&imu_data);
                 }
 
                 last_telemetry_time = now;
@@ -183,18 +176,10 @@ void app_main(void)
 
                 // Send failsafe status to Pi
                 crsf_channels_t dummy_channels = {0};
-                pi_uart_send_crsf_channels(&dummy_channels, true);
+                pi_mavlink_send_rc_channels(&dummy_channels, true);
 
                 last_log_time = now;
             }
-        }
-
-        // Send heartbeat at 1 Hz
-        if ((now - last_heartbeat_time) >= pdMS_TO_TICKS(1000))
-        {
-            pi_uart_send_heartbeat();
-            pi_uart_send_system_info();
-            last_heartbeat_time = now;
         }
 
         vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz control loop
