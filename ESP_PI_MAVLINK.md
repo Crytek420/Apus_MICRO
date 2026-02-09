@@ -94,7 +94,7 @@ Contains ESP32-S3 system information:
 ┌──────────────────┐                           ┌──────────────────┐
 │   ESP32-S3       │   MAVLink over UART       │  Raspberry Pi    │
 │  Flight Control  │ ─────────────────────────>│   Zero 2W        │
-│                  │       115200 baud          │                  │
+│                  │       115200 baud         │                  │
 │  - WT901B IMU    │                           │  - GPS (SIM7600) │
 │  - CRSF RX       │                           │  - 4G Modem      │
 │  - Servos        │                           │  - Tailscale VPN │
