@@ -307,8 +307,21 @@ esp_err_t pi_mavlink_send_rc_channels(const crsf_channels_t *channels, bool fail
         memcpy(&payload[4 + i * 2], &zero, 2);
     }
 
-    payload[40] = 16;                 // chancount
-    payload[41] = failsafe ? 0 : 255; // rssi (0 = failsafe, 255 = perfect)
+    payload[40] = 16; // chancount
+
+    // Get actual RSSI from CRSF link statistics
+    // CRSF uplink_link_quality is 0-100%, we store it in the rssi field
+    // The frontend will use linkQuality for signal bars display
+    crsf_link_statistics_t link_stats;
+    if (crsf_get_link_stats(&link_stats) && !failsafe)
+    {
+        // Use link quality (0-100%) as rssi - this is more reliable than actual RSSI
+        payload[41] = link_stats.uplink_link_quality;
+    }
+    else
+    {
+        payload[41] = failsafe ? 0 : 0; // 0 = no link / failsafe
+    }
 
     return mavlink_send_message(MAVLINK_MSG_ID_RC_CHANNELS, payload, 42, 118);
 }

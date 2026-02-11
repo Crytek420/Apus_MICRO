@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "ESP32",
-    "project_version":    "4d983bc-dirty",
+    "project_version":    "68eed21-dirty",
     "project_path":       "C:/Users/simon/Apus/Apus_MICRO",
     "idf_path":           "C:/Users/simon/esp/v5.4.1/esp-idf",
     "build_dir":          "C:/Users/simon/Apus/Apus_MICRO/build",

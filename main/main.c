@@ -80,6 +80,7 @@ void app_main(void)
 
     uint32_t last_log_time = 0;
     uint32_t last_telemetry_time = 0;
+    uint32_t last_imu_time = 0;
 
     while (1)
     {
@@ -120,18 +121,11 @@ void app_main(void)
             uint16_t throttle = esc_map_crsf_to_throttle(channels.channels[2]);
             esc_set_throttle(throttle);
 
-            // Send telemetry data to Raspberry Pi at 20 Hz via MAVLink
+            // Send RC channels to Raspberry Pi at 20 Hz via MAVLink
             if ((now - last_telemetry_time) >= pdMS_TO_TICKS(50))
             {
                 // Send RC channels
                 pi_mavlink_send_rc_channels(&channels, false);
-
-                // Send IMU data
-                wt901b_data_t imu_data;
-                if (wt901b_get_data(&imu_data))
-                {
-                    pi_mavlink_send_imu(&imu_data);
-                }
 
                 last_telemetry_time = now;
             }
@@ -180,6 +174,17 @@ void app_main(void)
 
                 last_log_time = now;
             }
+        }
+
+        // Send IMU data to Raspberry Pi at 20 Hz via MAVLink (always, regardless of RC)
+        if ((now - last_imu_time) >= pdMS_TO_TICKS(50))
+        {
+            wt901b_data_t imu_data;
+            if (wt901b_get_data(&imu_data))
+            {
+                pi_mavlink_send_imu(&imu_data);
+            }
+            last_imu_time = now;
         }
 
         vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz control loop
