@@ -306,7 +306,11 @@ static void wt901b_task(void *pvParameters)
         else
         {
             error_counter++;
-            g_data_valid = false;
+            if (xSemaphoreTake(g_data_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
+            {
+                g_data_valid = false;
+                xSemaphoreGive(g_data_mutex);
+            }
 
             if (error_counter > 10)
             {

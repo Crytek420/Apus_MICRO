@@ -24,7 +24,6 @@
 /* Reverse Brake Configuration (Type B) */
 #define ESC_REVERSE_MIN_PULSEWIDTH_US 1340 // 1.34ms = 0% reverse throttle
 #define ESC_REVERSE_MAX_PULSEWIDTH_US 1790 // 1.79ms = 100% reverse throttle
-#define ESC_REVERSE_NEUTRAL_US 1000        // Neutral position for reverse channel
 
 /* Motor Direction */
 typedef enum

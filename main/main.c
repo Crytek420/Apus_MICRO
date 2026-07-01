@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
+#include "driver/temperature_sensor.h"
 #include "crsf_protocol.h"
 #include "servo_control.h"
 #include "pi_mavlink.h"
@@ -64,6 +66,17 @@ void app_main(void)
         ESP_LOGW(TAG, "WT901B IMU not found - continuing without IMU");
     }
 
+    // Initialize internal temperature sensor
+    temperature_sensor_handle_t temp_sensor = NULL;
+    temperature_sensor_config_t temp_config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(10, 80);
+    if (temperature_sensor_install(&temp_config, &temp_sensor) == ESP_OK) {
+        temperature_sensor_enable(temp_sensor);
+        ESP_LOGI(TAG, "Temperature sensor initialized");
+    } else {
+        ESP_LOGW(TAG, "Temperature sensor init failed - continuing without it");
+        temp_sensor = NULL;
+    }
+
     // Start CRSF communication task (100 Hz)
     ESP_LOGI(TAG, "Starting CRSF communication task...");
     crsf_start_task();
@@ -81,9 +94,12 @@ void app_main(void)
     uint32_t last_log_time = 0;
     uint32_t last_telemetry_time = 0;
     uint32_t last_imu_time = 0;
+    uint32_t last_stats_time = 0;
+    float last_cycle_us = 0.0f;
 
     while (1)
     {
+        int64_t loop_start_us = esp_timer_get_time();
         uint32_t now = xTaskGetTickCount();
 
         // Get RC channel data from CRSF
@@ -161,11 +177,15 @@ void app_main(void)
         }
         else
         {
-            // No RC signal - set servos to neutral for safety
+            // No RC signal - cut servos/ESC to a safe state immediately every
+            // loop iteration. This must not be gated behind the 1 Hz log timer,
+            // otherwise the ESC keeps driving the last commanded throttle for
+            // up to ~1s after the CRSF staleness timeout already fired.
+            servo_set_neutral();
+            esc_emergency_stop();
+
             if ((now - last_log_time) >= pdMS_TO_TICKS(1000))
             {
-                servo_set_neutral();
-                esc_emergency_stop();
                 ESP_LOGW(TAG, "No RC signal - servos in neutral, ESC stopped");
 
                 // Send failsafe status to Pi
@@ -185,6 +205,21 @@ void app_main(void)
                 pi_mavlink_send_imu(&imu_data);
             }
             last_imu_time = now;
+        }
+
+        // Measure loop body duration before the sleep
+        last_cycle_us = (float)(esp_timer_get_time() - loop_start_us);
+
+        // Send ESP32 hardware stats to Pi at 1 Hz
+        if ((now - last_stats_time) >= pdMS_TO_TICKS(1000))
+        {
+            float temp_c = 0.0f;
+            if (temp_sensor != NULL) {
+                temperature_sensor_get_celsius(temp_sensor, &temp_c);
+            }
+            float free_heap_kb = (float)esp_get_free_heap_size() / 1024.0f;
+            pi_mavlink_send_esp_stats(temp_c, free_heap_kb, last_cycle_us);
+            last_stats_time = now;
         }
 
         vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz control loop

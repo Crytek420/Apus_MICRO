@@ -37,7 +37,10 @@ typedef struct
     uint8_t device_addr; // Device address
     uint8_t frame_size;  // Length of frame (type + payload + crc)
     uint8_t type;        // Frame type
-    uint8_t payload[CRSF_PAYLOAD_SIZE_MAX];
+    // +1 because crsf_validate_frame() reads the trailing CRC byte out of
+    // this array at index (frame_size - 2), and frame_size can be as large
+    // as CRSF_PAYLOAD_SIZE_MAX + 2 (type + payload + crc).
+    uint8_t payload[CRSF_PAYLOAD_SIZE_MAX + 1];
 } __attribute__((packed)) crsf_frame_t;
 
 /* CRSF RC Channels Structure */

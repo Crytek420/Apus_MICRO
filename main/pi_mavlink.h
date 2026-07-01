@@ -87,4 +87,13 @@ void pi_mavlink_task(void *pvParameters);
  */
 esp_err_t pi_mavlink_start_task(void);
 
+/**
+ * @brief Send ESP32 hardware stats: die temperature, free heap, main-loop cycle time
+ * @param temp_c        Die temperature in °C (from internal temperature sensor)
+ * @param free_heap_kb  Free heap in KB
+ * @param cycle_us      Main loop body duration in microseconds
+ * @return ESP_OK on success
+ */
+esp_err_t pi_mavlink_send_esp_stats(float temp_c, float free_heap_kb, float cycle_us);
+
 #endif // PI_MAVLINK_H

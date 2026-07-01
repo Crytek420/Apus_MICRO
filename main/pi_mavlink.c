@@ -22,6 +22,7 @@ static const char *TAG = "PI_MAVLINK";
 #define MAVLINK_MSG_ID_RC_CHANNELS 65
 #define MAVLINK_MSG_ID_SCALED_IMU 26
 #define MAVLINK_MSG_ID_HIGHRES_IMU 105
+#define MAVLINK_MSG_ID_NAMED_VALUE_FLOAT 251
 
 // Task handle
 static TaskHandle_t mavlink_task_handle = NULL;
@@ -162,6 +163,37 @@ esp_err_t pi_mavlink_deinit(void)
     uart_driver_delete(PI_UART_NUM);
     ESP_LOGI(TAG, "MAVLink deinitialized");
     return ESP_OK;
+}
+
+/**
+ * @brief Pack and send a NAMED_VALUE_FLOAT message (ID 251, CRC_EXTRA 170)
+ * Payload layout: time_boot_ms(4) + value(4) + name(10) = 18 bytes
+ */
+static esp_err_t mavlink_send_named_value_float(const char *name, float value)
+{
+    uint8_t payload[18] = {0};
+    uint32_t time_boot_ms = get_time_boot_ms();
+
+    memcpy(&payload[0], &time_boot_ms, 4);
+    memcpy(&payload[4], &value, 4);
+
+    size_t name_len = strlen(name);
+    if (name_len > 10) name_len = 10;
+    memcpy(&payload[8], name, name_len);
+
+    return mavlink_send_message(MAVLINK_MSG_ID_NAMED_VALUE_FLOAT, payload, 18, 170);
+}
+
+/**
+ * @brief Send ESP32 hardware stats to Pi (die temp, free heap, loop cycle time)
+ */
+esp_err_t pi_mavlink_send_esp_stats(float temp_c, float free_heap_kb, float cycle_us)
+{
+    esp_err_t ret = ESP_OK;
+    if (mavlink_send_named_value_float("ESP_TEMP",  temp_c)       != ESP_OK) ret = ESP_FAIL;
+    if (mavlink_send_named_value_float("ESP_HEAP",  free_heap_kb) != ESP_OK) ret = ESP_FAIL;
+    if (mavlink_send_named_value_float("ESP_CYCLE", cycle_us)     != ESP_OK) ret = ESP_FAIL;
+    return ret;
 }
 
 /**
@@ -320,7 +352,8 @@ esp_err_t pi_mavlink_send_rc_channels(const crsf_channels_t *channels, bool fail
     }
     else
     {
-        payload[41] = failsafe ? 0 : 0; // 0 = no link / failsafe
+        // Per MAVLink RC_CHANNELS spec: 0 = no signal, 255 = value unknown/unavailable.
+        payload[41] = failsafe ? 0 : 255;
     }
 
     return mavlink_send_message(MAVLINK_MSG_ID_RC_CHANNELS, payload, 42, 118);

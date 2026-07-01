@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include <string.h>
 
 // Temporarily disable verbose logging for IMU debugging
@@ -30,6 +31,10 @@ static bool g_rc_data_valid = false;
 static uint32_t g_last_rc_frame_time = 0;
 static crsf_link_statistics_t g_link_statistics = {0};
 static bool g_link_stats_valid = false;
+// Guards g_rc_channels/g_rc_data_valid/g_last_rc_frame_time, which are written
+// by crsf_task (potentially on the other CPU core) and read from app_main's
+// control loop with no other synchronization.
+static SemaphoreHandle_t g_rc_mutex = NULL;
 
 /* CRC8 Table for DVB-S2 */
 static const uint8_t crc8_dvb_s2_table[256] = {
@@ -218,6 +223,15 @@ esp_err_t crsf_uart_init(void)
     ESP_ERROR_CHECK(uart_driver_install(CRSF_UART_NUM, CRSF_UART_BUF_SIZE,
                                         CRSF_UART_BUF_SIZE, 0, NULL, 0));
 
+    if (g_rc_mutex == NULL)
+    {
+        g_rc_mutex = xSemaphoreCreateMutex();
+        if (g_rc_mutex == NULL)
+        {
+            ESP_LOGE(TAG, "Failed to create RC channels mutex");
+        }
+    }
+
     ESP_LOGI(TAG, "CRSF UART initialized successfully");
     ESP_LOGI(TAG, "Waiting for data from XR1 module...");
 
@@ -245,14 +259,18 @@ static void crsf_process_frame(const uint8_t *data, size_t length)
     switch (frame->type)
     {
     case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
-        crsf_parse_rc_channels(frame->payload, &g_rc_channels);
-        g_rc_data_valid = true;
-        g_last_rc_frame_time = xTaskGetTickCount();
-        ESP_LOGD(TAG, "RC Channels: [%d, %d, %d, %d]",
-                 g_rc_channels.channels[0],
-                 g_rc_channels.channels[1],
-                 g_rc_channels.channels[2],
-                 g_rc_channels.channels[3]);
+        if (g_rc_mutex != NULL && xSemaphoreTake(g_rc_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
+        {
+            crsf_parse_rc_channels(frame->payload, &g_rc_channels);
+            g_rc_data_valid = true;
+            g_last_rc_frame_time = xTaskGetTickCount();
+            ESP_LOGD(TAG, "RC Channels: [%d, %d, %d, %d]",
+                     g_rc_channels.channels[0],
+                     g_rc_channels.channels[1],
+                     g_rc_channels.channels[2],
+                     g_rc_channels.channels[3]);
+            xSemaphoreGive(g_rc_mutex);
+        }
         break;
 
     case CRSF_FRAMETYPE_LINK_STATISTICS:
@@ -380,8 +398,14 @@ void crsf_send_telemetry(crsf_frame_t *frame, uint8_t frame_length)
  */
 bool crsf_get_channels(crsf_channels_t *channels)
 {
+    if (g_rc_mutex == NULL || xSemaphoreTake(g_rc_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+    {
+        return false;
+    }
+
     if (!g_rc_data_valid)
     {
+        xSemaphoreGive(g_rc_mutex);
         return false;
     }
 
@@ -389,11 +413,13 @@ bool crsf_get_channels(crsf_channels_t *channels)
     if ((xTaskGetTickCount() - g_last_rc_frame_time) > pdMS_TO_TICKS(500))
     {
         g_rc_data_valid = false;
+        xSemaphoreGive(g_rc_mutex);
         ESP_LOGW(TAG, "RC data timeout");
         return false;
     }
 
     memcpy(channels, &g_rc_channels, sizeof(crsf_channels_t));
+    xSemaphoreGive(g_rc_mutex);
     return true;
 }
 
