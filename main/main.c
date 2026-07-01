@@ -146,34 +146,16 @@ void app_main(void)
                 last_telemetry_time = now;
             }
 
-            // Log RC values at 1 Hz
-            if ((now - last_log_time) >= pdMS_TO_TICKS(1000))
-            {
-                uint16_t esc_throttle = esc_get_throttle();
-                ESP_LOGI(TAG, "RC Sticks: Roll=%d Pitch=%d Throttle=%d Yaw=%d (ESC: %d%%)",
-                         channels.channels[0], channels.channels[1],
-                         channels.channels[2], channels.channels[3],
-                         esc_throttle / 10);
-                ESP_LOGI(TAG, "Switches: SA=%d SB=%d SC=%d SD=%d SE=%d",
-                         channels.channels[4], channels.channels[5],
-                         channels.channels[6], channels.channels[7],
-                         channels.channels[8]);
-                ESP_LOGI(TAG, "Aux: CH10=%d CH11=%d CH12=%d",
-                         channels.channels[9], channels.channels[10],
-                         channels.channels[11]);
-                ESP_LOGI(TAG, "Controls: Roll=%d Pitch=%d Yaw=%d",
-                         control.roll, control.pitch, control.yaw);
-
-                // Log IMU data
-                wt901b_data_t imu_data;
-                if (wt901b_get_data(&imu_data))
-                {
-                    ESP_LOGI(TAG, "IMU: Roll=%.1f° Pitch=%.1f° Yaw=%.1f°",
-                             imu_data.roll, imu_data.pitch, imu_data.yaw);
-                }
-
-                last_log_time = now;
-            }
+            // NOTE: this branch used to also log RC/IMU values to the console at
+            // 1Hz here. That block wrote ~300+ bytes across 5 ESP_LOGI calls
+            // straight to the UART0 console (115200 baud) every second, and blocked
+            // the control loop for the ~20ms it took to physically drain — i.e. the
+            // entire loop period, once per second, only while RC was connected (the
+            // RC-invalid branch below only ever logs one short line). That was the
+            // actual cause of the reported espCycleUs regression, not scheduler
+            // contention. The same data is already sent to the ground station via
+            // MAVLink at 20Hz and shown on the Apus_TELE dashboard, so it was
+            // removed rather than made async.
         }
         else
         {
